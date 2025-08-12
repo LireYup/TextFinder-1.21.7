@@ -1,0 +1,34 @@
+{
+	"schemaVersion": 1,
+	"id": "textfinder",
+	"version": "${version}",
+	"name": "TextFinder",
+	"description": "Annoyed by searching text on one another signs??Try this!",
+	"authors": [
+		"LireYup"
+	],
+	"contact": {
+		"homepage": "https://fabricmc.net/",
+		"sources": "https://github.com/FabricMC/fabric-example-mod"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/textfinder/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"lire.textfinder.TextFinder"
+		]
+	},
+	"mixins": [
+		"textfinder.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.17.2",
+		"minecraft": "~1.21.7",
+		"java": ">=21",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"another-mod": "*"
+	}
+}

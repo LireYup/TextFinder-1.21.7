@@ -7,60 +7,57 @@ import lire.textfinder.search.SignSearchManager;
 import lire.textfinder.data.SignData;
 import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.text.Text;
-// 导入客户端指令相关类
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.literal;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.argument;
+// 关键：导入greedyString静态方法
+import static com.mojang.brigadier.arguments.StringArgumentType.greedyString;
 
 public class TextFinderCommands {
 
-    // 适配客户端指令注册参数（移除服务器环境参数）
     public static void register(CommandDispatcher<FabricClientCommandSource> dispatcher,
                                 CommandRegistryAccess registryAccess) {
-        // 主指令节点（使用客户端指令源）
+        // 主指令节点：全部替换为greedyString
         dispatcher.register(literal("textfinder")
                 .then(literal("search")
-                        .then(argument("keyword", StringArgumentType.string())
+                        .then(argument("keyword", greedyString()) // 这里修改
                                 .executes(TextFinderCommands::searchCommand)))
                 .then(literal("display")
                         .executes(TextFinderCommands::displayCommand))
                 .then(literal("refilter")
-                        .then(argument("newKeyword", StringArgumentType.string())
+                        .then(argument("newKeyword", greedyString()) // 这里修改
                                 .executes(TextFinderCommands::refilterCommand)))
                 .then(literal("clear")
                         .executes(TextFinderCommands::clearCommand)));
 
-        // 简写指令
+        // 简写指令：同样替换
         dispatcher.register(literal("tf")
-                .then(argument("keyword", StringArgumentType.string())
+                .then(argument("keyword", greedyString()) // 这里修改
                         .executes(TextFinderCommands::searchCommand)));
 
         dispatcher.register(literal("td")
                 .executes(TextFinderCommands::displayCommand));
 
         dispatcher.register(literal("trf")
-                .then(argument("newKeyword", StringArgumentType.string())
+                .then(argument("newKeyword", greedyString()) // 这里修改
                         .executes(TextFinderCommands::refilterCommand)));
     }
 
-    // 以下指令处理方法的参数类型需从 ServerCommandSource 改为 FabricClientCommandSource
+    // 以下方法逻辑不变（搜索/显示/筛选/清除）
     private static int searchCommand(CommandContext<FabricClientCommandSource> context) {
         String keyword = StringArgumentType.getString(context, "keyword");
         FabricClientCommandSource source = context.getSource();
 
-        // 检查是否在游戏中（客户端指令源获取玩家）
         if (source.getPlayer() == null) {
             source.sendError(Text.literal("请在游戏中使用此指令!"));
             return 0;
         }
 
-        // 开始搜索（逻辑不变）
         SignSearchManager.getInstance().startSearch(keyword);
         source.sendFeedback(Text.literal("§a开始搜索告示牌中的 '").append(keyword).append("'..."));
         return 1;
     }
 
-    // 同样修改 displayCommand/refilterCommand/clearCommand 的参数类型为 FabricClientCommandSource
     private static int displayCommand(CommandContext<FabricClientCommandSource> context) {
         FabricClientCommandSource source = context.getSource();
         SignSearchManager manager = SignSearchManager.getInstance();
@@ -76,7 +73,6 @@ public class TextFinderCommands {
             return 0;
         }
 
-        // 显示结果（逻辑不变）
         source.sendFeedback(Text.literal("§a找到 " + results.size() + " 个匹配的告示牌:"));
         int displaycount = Math.min(results.size(), 10);
 

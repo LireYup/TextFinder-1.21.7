@@ -35,55 +35,43 @@ public class SignData {
     }
 
     // Getters
-    public BlockPos getPos() {
-        return pos;
-    }
-
-    public Block getBlock() {
-        return block;
-    }
-
-    public int getBlockId() {
-        return blockId;
-    }
-
-    public List<Text> getFrontTexts() {
-        return frontTexts;
-    }
-
-    public String getFrontColor() {
-        return frontColor;
-    }
-
-    public boolean isFrontGlowing() {
-        return frontGlowing;
-    }
-
-    public List<Text> getBackTexts() {
-        return backTexts;
-    }
-
-    public String getBackColor() {
-        return backColor;
-    }
-
-    public boolean isBackGlowing() {
-        return backGlowing;
-    }
+    public BlockPos getPos() { return pos; }
+    public Block getBlock() { return block; }
+    public int getBlockId() { return blockId; }
+    public List<Text> getFrontTexts() { return frontTexts; }
+    public String getFrontColor() { return frontColor; }
+    public boolean isFrontGlowing() { return frontGlowing; }
+    public List<Text> getBackTexts() { return backTexts; }
+    public String getBackColor() { return backColor; }
+    public boolean isBackGlowing() { return backGlowing; }
 
     /**
-     * 检查告示牌的正反面文本是否包含目标字符串
+     * 检查告示牌是否匹配搜索关键词
      */
     public boolean matches(String searchContext) {
+        String processedKeyword = processString(searchContext);
+
         // 检查正面文本
         for (Text text : frontTexts) {
-            if (text.getString().contains(searchContext)) {
+            String textStr = processString(text.getString());
+            if (textStr.contains(processedKeyword)) {
                 return true;
             }
         }
+
         // 检查背面文本
+        return matchesBack(searchContext);
+    }
+
+    /**
+     * 检查背面是否匹配搜索关键词
+     */
+    public boolean matchesBack(String searchContext) {
+        String processedKeyword = processString(searchContext);
+
         for (Text text : backTexts) {
-            if (text.getString().contains(searchContext)) {
+            String textStr = processString(text.getString());
+            if (textStr.contains(processedKeyword)) {
                 return true;
             }
         }
@@ -91,11 +79,34 @@ public class SignData {
     }
 
     /**
-     * 获取包含匹配文本的面的文本内容（用于Normal输出模式）
+     * 字符串预处理：去除前后空格 + 全角转半角
+     */
+    private String processString(String str) {
+        if (str == null) return "";
+        // 去除前后空格
+        String trimmed = str.trim();
+        // 全角转半角
+        StringBuilder sb = new StringBuilder();
+        for (char c : trimmed.toCharArray()) {
+            if (c == 12288) { // 全角空格
+                sb.append((char) 32);
+            } else if (c >= 65281 && c <= 65374) { // 全角字符范围
+                sb.append((char) (c - 65248));
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
+     * 获取包含匹配文本的面的文本内容
      */
     public List<Text> getMatchingTexts(String searchContext) {
+        String processedKeyword = processString(searchContext);
+
         for (Text text : frontTexts) {
-            if (text.getString().contains(searchContext)) {
+            if (processString(text.getString()).contains(processedKeyword)) {
                 return frontTexts;
             }
         }

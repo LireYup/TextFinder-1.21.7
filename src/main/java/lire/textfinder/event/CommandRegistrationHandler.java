@@ -17,7 +17,7 @@ public class CommandRegistrationHandler {
         // 使用客户端指令注册回调，确保指令在客户端生效
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             TextFinder.LOGGER.info("注册告示牌搜索客户端指令...");
-            TextFinderCommands.register(dispatcher, registryAccess);
+            TextFinderCommands.register(dispatcher);
         });
     }
 }

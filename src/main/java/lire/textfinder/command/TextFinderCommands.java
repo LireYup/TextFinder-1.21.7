@@ -15,8 +15,11 @@ import static com.mojang.brigadier.arguments.StringArgumentType.greedyString;
 
 public class TextFinderCommands {
 
+    private static CommandRegistryAccess registryAccess;
+
     public static void register(CommandDispatcher<FabricClientCommandSource> dispatcher,
                                 CommandRegistryAccess registryAccess) {
+        TextFinderCommands.registryAccess = registryAccess;
         // 主指令节点：全部替换为greedyString
         dispatcher.register(literal("textfinder")
                 .then(literal("search")

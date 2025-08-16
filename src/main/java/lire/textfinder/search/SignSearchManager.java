@@ -74,8 +74,8 @@ public class SignSearchManager {
         BlockPos playerPos = client.player.getBlockPos();
         ChunkPos playerChunkPos = new ChunkPos(playerPos);
 
-        // 1.21.7兼容方案：使用默认渲染距离8
-        int renderDistance = 8;
+        // 使用配置中的搜索范围
+        int renderDistance = TextFinder.config.getsearchrange();
 
         // 搜索玩家周围一定范围内的区块
         for (int x = -renderDistance; x <= renderDistance; x++) {
@@ -116,7 +116,7 @@ public class SignSearchManager {
             return;
         }
 
-        // 修正配置方法调用（全小写方法名）
+        // 获取每tick最大搜索数量配置
         int maxpertick = TextFinder.config.getmaxsearchamountpertick();
         int processedthistick = 0;
 

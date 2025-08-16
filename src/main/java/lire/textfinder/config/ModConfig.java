@@ -10,19 +10,20 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 
-// 修正类名引用问题，确保被其他类使用
 public class ModConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final File CONFIG_FILE = new File(FabricLoader.getInstance().getConfigDir().toFile(), "textfinder.json");
 
-    // 变量名改为全小写
+    // 配置项定义
     private int maxsearchamountpertick = 100;
     private boolean withbaritone = false;
     private boolean withclientcommands = false;
-    private String outputcomplexity = "Normal";
+    private int outputcomplexity = 2; // 1=simple, 2=normal, 3=complex, 4=debug
     private int debugpgt = 4;
     private int cglowtime = 60;
     private String cglowcolor = "white";
+    private boolean firstlaunch = false; // 首次启动标识
+    private int searchrange = 12; // 搜索范围
 
     public static ModConfig load() {
         ModConfig config = new ModConfig();
@@ -30,9 +31,17 @@ public class ModConfig {
         if (CONFIG_FILE.exists()) {
             try (FileReader reader = new FileReader(CONFIG_FILE)) {
                 config = GSON.fromJson(reader, ModConfig.class);
+
+                // 首次启动或配置异常时重置为默认值
+                if (config.firstlaunch) {
+                    config = new ModConfig();
+                    config.firstlaunch = false;
+                    config.save();
+                }
             } catch (IOException e) {
-                // 替换printStackTrace为日志输出
                 TextFinder.LOGGER.error("加载配置文件失败", e);
+                config = new ModConfig();
+                config.save();
             }
         } else {
             config.save();
@@ -45,12 +54,11 @@ public class ModConfig {
         try (FileWriter writer = new FileWriter(CONFIG_FILE)) {
             GSON.toJson(this, writer);
         } catch (IOException e) {
-            // 替换printStackTrace为日志输出
             TextFinder.LOGGER.error("保存配置文件失败", e);
         }
     }
 
-    // Getters and Setters改为全小写方法名
+    // 最大每tick搜索数量
     public int getmaxsearchamountpertick() {
         return Math.max(1, Math.min(255, maxsearchamountpertick));
     }
@@ -59,6 +67,7 @@ public class ModConfig {
         this.maxsearchamountpertick = Math.max(1, Math.min(255, value));
     }
 
+    // Baritone集成开关
     public boolean iswithbaritone() {
         return withbaritone;
     }
@@ -67,6 +76,7 @@ public class ModConfig {
         this.withbaritone = withbaritone;
     }
 
+    // 客户端指令集成开关
     public boolean iswithclientcommands() {
         return withclientcommands;
     }
@@ -75,17 +85,16 @@ public class ModConfig {
         this.withclientcommands = withclientcommands;
     }
 
-    public String getoutputcomplexity() {
-        if (!outputcomplexity.equals("Simple") && !outputcomplexity.equals("Normal") && !outputcomplexity.equals("Debug")) {
-            return "Normal";
-        }
-        return outputcomplexity;
+    // 输出复杂度
+    public int getoutputcomplexity() {
+        return Math.max(1, Math.min(4, outputcomplexity));
     }
 
-    public void setoutputcomplexity(String outputcomplexity) {
-        this.outputcomplexity = outputcomplexity;
+    public void setoutputcomplexity(int outputcomplexity) {
+        this.outputcomplexity = Math.max(1, Math.min(4, outputcomplexity));
     }
 
+    // 调试信息间隔
     public int getdebugpgt() {
         return Math.max(1, Math.min(255, debugpgt));
     }
@@ -94,6 +103,7 @@ public class ModConfig {
         this.debugpgt = Math.max(1, Math.min(255, debugpgt));
     }
 
+    // 发光时间
     public int getcglowtime() {
         return cglowtime;
     }
@@ -102,11 +112,30 @@ public class ModConfig {
         this.cglowtime = cglowtime;
     }
 
+    // 发光颜色
     public String getcglowcolor() {
         return cglowcolor;
     }
 
     public void setcglowcolor(String cglowcolor) {
         this.cglowcolor = cglowcolor;
+    }
+
+    // 首次启动标识
+    public boolean isfirstlaunch() {
+        return firstlaunch;
+    }
+
+    public void setfirstlaunch(boolean firstlaunch) {
+        this.firstlaunch = firstlaunch;
+    }
+
+    // 搜索范围
+    public int getsearchrange() {
+        return Math.max(1, Math.min(32, searchrange));
+    }
+
+    public void setsearchrange(int searchrange) {
+        this.searchrange = Math.max(1, Math.min(32, searchrange));
     }
 }

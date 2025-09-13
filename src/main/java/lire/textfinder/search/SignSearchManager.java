@@ -7,11 +7,11 @@ import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.SignBlockEntity;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.chunk.ChunkStatus;
 import net.minecraft.world.chunk.WorldChunk;
+import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -26,6 +26,8 @@ public class SignSearchManager {
     private final List<SignData> foundSigns = new CopyOnWriteArrayList<>();
     // 存储所有检测过的告示牌总数（用于调试输出）
     private int totalSignsChecked = 0;
+    // 所有检测过的告示牌总数（用于进度显示）
+    private int totalSignsProcessed = 0;
     // 当前搜索上下文
     private String currentSearchContext = "";
     // 搜索是否正在进行中
@@ -75,8 +77,8 @@ public class SignSearchManager {
         BlockPos playerPos = client.player.getBlockPos();
         ChunkPos playerChunkPos = new ChunkPos(playerPos);
 
-        // 使用配置中的搜索范围
-        int renderDistance = TextFinder.config.getsearchrange();
+        // 1.21.7兼容方案：使用默认渲染距离8
+        int renderDistance = 8;
 
         // 搜索玩家周围一定范围内的区块
         for (int x = -renderDistance; x <= renderDistance; x++) {
@@ -102,6 +104,7 @@ public class SignSearchManager {
     public void resetSearch() {
         foundSigns.clear();
         totalSignsChecked = 0;
+        totalSignsProcessed = 0; // 重置总处理数
         currentSearchContext = "";
         isSearching = false;
         chunkIterator = null;
@@ -117,17 +120,18 @@ public class SignSearchManager {
             return;
         }
 
-        // 获取每tick最大搜索数量配置
+        // 修正配置方法调用（全小写方法名）
         int maxpertick = TextFinder.config.getmaxsearchamountpertick();
         int processedthistick = 0;
 
-        // 遍历区块，达到每tick最大数量时暂停
+        // 遍历区块
         while (chunkIterator.hasNext() && processedthistick < maxpertick) {
             WorldChunk chunk = chunkIterator.next();
 
             // 获取区块中的所有方块实体
             List<BlockEntity> blockEntities = new ArrayList<>(chunk.getBlockEntities().values());
             int entitycount = blockEntities.size();
+            totalSignsProcessed += entitycount; // 累加总处理数
 
             // 遍历方块实体
             while (nextBlockEntityIndex < entitycount && processedthistick < maxpertick) {
@@ -158,9 +162,6 @@ public class SignSearchManager {
             }
         }
 
-        // 处理debug模式的进度输出
-        handleDebugProgressOutput(client);
-
         // 所有区块处理完毕，结束搜索
         if (!chunkIterator.hasNext() && nextBlockEntityIndex == 0) {
             isSearching = false;
@@ -168,189 +169,10 @@ public class SignSearchManager {
             TextFinder.LOGGER.info("Search completed. Found {} matching signs.", foundCount);
 
             // 发送结果消息给玩家
+            client = MinecraftClient.getInstance();
             if (client.player != null) {
                 client.player.sendMessage(Text.literal("找到 " + foundCount + " 个匹配的告示牌"), false);
-                outputSearchResults(client);
             }
-        }
-    }
-
-    /**
-     * 处理debug模式的进度输出
-     */
-    private void handleDebugProgressOutput(MinecraftClient client) {
-        if (TextFinder.config.getoutputcomplexity() == 4 && client.player != null) {
-            int debugInterval = TextFinder.config.getdebugpgt();
-            if (totalSignsChecked % debugInterval == 0 && totalSignsChecked > 0) {
-                client.player.sendMessage(Text.literal(
-                        "已找到 " + foundSigns.size() + "|" + totalSignsChecked + " 个告示牌"
-                ), false);
-            }
-        }
-    }
-
-    /**
-     * 根据输出复杂度输出搜索结果
-     */
-    public void outputSearchResults(MinecraftClient client) {
-        if (client.player == null || foundSigns.isEmpty()) return;
-
-        int outputComplexity = TextFinder.config.getoutputcomplexity();
-
-        for (int i = 0; i < foundSigns.size(); i++) {
-            SignData sign = foundSigns.get(i);
-            Text message = switch (outputComplexity) {
-                case 1 -> createSimpleOutput(sign);
-                case 2 -> createNormalOutput(sign, i + 1);
-                case 3 -> createComplexOutput(sign, i + 1);
-                case 4 -> createDebugOutput(sign, i + 1);
-                default -> Text.literal("无效的输出模式");
-            };
-            client.player.sendMessage(message, false);
-        }
-    }
-
-    /**
-     * 创建简单模式输出
-     */
-    private Text createSimpleOutput(SignData sign) {
-        BlockPos pos = sign.getPos();
-        StringBuilder content = new StringBuilder();
-
-        // 获取包含关键词的文本行
-        List<Text> matchingTexts = sign.getMatchingTexts(currentSearchContext);
-        boolean first = true;
-
-        for (Text text : matchingTexts) {
-            String textStr = text.getString();
-            if (!textStr.isEmpty() && textStr.contains(currentSearchContext)) {
-                if (!first) {
-                    content.append(Formatting.GRAY).append("; ");
-                }
-                content.append(text.getString());
-                first = false;
-            }
-        }
-
-        return Text.literal(pos.getX() + " " + pos.getY() + " " + pos.getZ() + " ")
-                .append(Text.literal(content.toString()).formatted(getFormattingFromColor(sign.getFrontColor())));
-    }
-
-    /**
-     * 创建普通模式输出
-     */
-    private Text createNormalOutput(SignData sign, int index) {
-        BlockPos pos = sign.getPos();
-        StringBuilder frontContent = new StringBuilder();
-        StringBuilder backContent = new StringBuilder();
-
-        // 处理正面文本
-        for (Text text : sign.getFrontTexts()) {
-            String textStr = text.getString();
-            if (!textStr.isEmpty()) {
-                if (!frontContent.isEmpty()) {
-                    frontContent.append(Formatting.GRAY).append("; ");
-                }
-                frontContent.append(textStr);
-            }
-        }
-
-        // 处理反面文本
-        for (Text text : sign.getBackTexts()) {
-            String textStr = text.getString();
-            if (!textStr.isEmpty()) {
-                if (!backContent.isEmpty()) {
-                    backContent.append(Formatting.GRAY).append("; ");
-                }
-                backContent.append(textStr);
-            }
-        }
-
-        // 检查是否两面都有关键字
-        boolean frontMatches = sign.getMatchingTexts(currentSearchContext) == sign.getFrontTexts();
-        boolean backMatches = sign.getMatchingTexts(currentSearchContext) == sign.getBackTexts() ||
-                (frontMatches && sign.matchesBack(currentSearchContext));
-
-        String content = frontMatches ? frontContent.toString() : backContent.toString();
-        if (frontMatches && backMatches) {
-            content = frontContent + " | " + backContent;
-        }
-
-        return Text.literal(index + " : " + pos.getX() + " " + pos.getY() + " " + pos.getZ() + " | " + content);
-    }
-
-    /**
-     * 创建复杂模式输出
-     */
-    private Text createComplexOutput(SignData sign, int index) {
-        BlockPos pos = sign.getPos();
-        StringBuilder frontContent = new StringBuilder();
-        StringBuilder backContent = new StringBuilder();
-
-        // 处理正面文本
-        for (Text text : sign.getFrontTexts()) {
-            if (!frontContent.isEmpty()) {
-                frontContent.append(Formatting.GRAY).append("; ");
-            }
-            frontContent.append(text.getString());
-        }
-
-        // 处理反面文本
-        for (Text text : sign.getBackTexts()) {
-            if (!backContent.isEmpty()) {
-                backContent.append(Formatting.GRAY).append("; ");
-            }
-            backContent.append(text.getString());
-        }
-
-        return Text.literal("在" + pos.getX() + " " + pos.getY() + " " + pos.getZ() +
-                "处找到第" + index + "个告示牌 | 告示牌内容：正面：" +
-                frontContent + " 反面：" + backContent);
-    }
-
-    /**
-     * 创建Debug模式输出
-     */
-    private Text createDebugOutput(SignData sign, int index) {
-        BlockPos pos = sign.getPos();
-        StringBuilder frontText = new StringBuilder();
-        StringBuilder backText = new StringBuilder();
-
-        // 处理正面文本
-        for (Text text : sign.getFrontTexts()) {
-            String textStr = text.getString();
-            if (!frontText.isEmpty()) {
-                frontText.append("|");
-            }
-            frontText.append(textStr.isEmpty() ? Formatting.GRAY.toString() + Formatting.ITALIC + "无" + Formatting.RESET : textStr);
-        }
-
-        // 处理反面文本
-        for (Text text : sign.getBackTexts()) {
-            String textStr = text.getString();
-            if (!backText.isEmpty()) {
-                backText.append("|");
-            }
-            backText.append(textStr.isEmpty() ? Formatting.GRAY.toString() + Formatting.ITALIC + "无" + Formatting.RESET : textStr);
-        }
-
-        return Text.literal("[序号：" + index + "][坐标：" + pos.getX() + " " + pos.getY() + " " + pos.getZ() + "]" +
-                "{文本：[" + frontText + "][正面是否发光：" + (sign.isFrontGlowing() ? "是" : "否") + "]" +
-                "[" + backText + "][反面是否发光：" + (sign.isBackGlowing() ? "是" : "否") + "]}" +
-                "[方块ID：" + sign.getBlockId() + "]");
-    }
-
-    /**
-     * 从颜色字符串获取格式
-     */
-    private Formatting getFormattingFromColor(String color) {
-        if (color == null || color.equals("default")) {
-            return Formatting.WHITE;
-        }
-        try {
-            return Formatting.valueOf(color.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            return Formatting.WHITE;
         }
     }
 
@@ -377,9 +199,9 @@ public class SignSearchManager {
 
         // 获取颜色和发光状态
         String frontColor = sign.getFrontText().getColor() != null ?
-                sign.getFrontText().getColor().getName() : "default";
+                sign.getFrontText().getColor().toString() : "default";
         String backColor = sign.getBackText().getColor() != null ?
-                sign.getBackText().getColor().getName() : "default";
+                sign.getBackText().getColor().toString() : "default";
 
         return new SignData(
                 pos,
@@ -408,6 +230,89 @@ public class SignSearchManager {
         currentSearchContext = newContext;
     }
 
+    /**
+     * 输出搜索结果到命令源（根据数字类型的输出复杂度）
+     * 复杂度等级：1=极简(仅坐标)，2=简单(坐标+首行文本)，3=详细(坐标+多行文本)，4=调试(全信息+进度)
+     */
+    public void outputSearchResults(FabricClientCommandSource source) {
+        if (isSearching()) {
+            source.sendFeedback(Text.literal("§e搜索正在进行中... 已检查 " + getTotalSignsChecked() + " 个告示牌"));
+            return;
+        }
+
+        List<SignData> results = getFoundSigns();
+        if (results.isEmpty()) {
+            source.sendFeedback(Text.literal("§e未找到匹配的告示牌"));
+            return;
+        }
+
+        // 读取数字类型的输出复杂度（关键修复：适配配置中的3/4等级）
+        int complexity;
+        try {
+            complexity = Integer.parseInt(TextFinder.config.getoutputcomplexity());
+        } catch (NumberFormatException e) {
+            complexity = 2; // 默认简单模式
+        }
+
+        // 复杂度4：显示进度信息（匹配日志中的"已找到2/4个告示牌"）
+        if (complexity >= 4) {
+            source.sendFeedback(Text.literal("已找到" + results.size() + "/" + totalSignsChecked + "个告示牌"));
+        }
+
+        source.sendFeedback(Text.literal("§a找到 " + results.size() + " 个匹配的告示牌:"));
+        int displayCount = Math.min(results.size(), 10);
+
+        for (int index = 0; index < displayCount; index++) {
+            SignData sign = results.get(index);
+            source.sendFeedback(formatSignText(sign, index + 1, complexity));
+        }
+
+        if (results.size() > 10) {
+            source.sendFeedback(Text.literal("§e还有 " + (results.size() - 10) + " 个结果未显示"));
+        }
+    }
+
+    /**
+     * 根据数字复杂度格式化单个告示牌信息
+     */
+    private Text formatSignText(SignData sign, int index, int complexity) {
+        BlockPos pos = sign.getPos();
+        StringBuilder sb = new StringBuilder();
+        sb.append("§b").append(index).append(". §r坐标: ").append(pos.toShortString());
+
+        // 复杂度2及以上：显示首行文本
+        if (complexity >= 2) {
+            String firstLine = sign.getFrontTexts().getFirst().getString();
+            if (firstLine.isEmpty() && !sign.getBackTexts().isEmpty()) {
+                firstLine = sign.getBackTexts().getFirst().getString();
+            }
+            sb.append(" §7").append(truncateText(firstLine, 20));
+        }
+
+        // 复杂度3及以上：显示多行文本和颜色
+        if (complexity >= 3) {
+            if (!sign.getFrontTexts().get(1).getString().isEmpty()) {
+                sb.append(" / ").append(truncateText(sign.getFrontTexts().get(1).getString(), 15));
+            }
+            sb.append(" §6[颜色: ").append(sign.getFrontColor()).append("]");
+        }
+
+        // 复杂度4及以上：显示发光状态和方块类型
+        if (complexity >= 4) {
+            sb.append(" §d[发光: ").append(sign.isFrontGlowing() ? "是" : "否").append("]");
+            sb.append(" §f[").append(sign.getState().getBlock().getName().getString()).append("]");
+        }
+
+        return Text.literal(sb.toString());
+    }
+
+    /**
+     * 截断长文本
+     */
+    private String truncateText(String text, int maxLength) {
+        return text.length() > maxLength ? text.substring(0, maxLength) + "..." : text;
+    }
+
     // Getters
     public List<SignData> getFoundSigns() {
         return new ArrayList<>(foundSigns);
@@ -431,5 +336,6 @@ public class SignSearchManager {
     public void clearFoundSigns() {
         foundSigns.clear();
         totalSignsChecked = 0;
+        totalSignsProcessed = 0;
     }
 }

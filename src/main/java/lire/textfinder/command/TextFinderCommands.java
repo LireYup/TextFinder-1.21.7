@@ -8,7 +8,6 @@ import net.minecraft.text.Text;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.literal;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.argument;
-import static com.mojang.brigadier.arguments.StringArgumentType.greedyString;
 
 public class TextFinderCommands {
 
@@ -16,30 +15,29 @@ public class TextFinderCommands {
         // 主指令节点
         dispatcher.register(literal("textfinder")
                 .then(literal("search")
-                        .then(argument("keyword", greedyString())
+                        .then(argument("keyword", StringArgumentType.string())
                                 .executes(TextFinderCommands::searchCommand)))
                 .then(literal("display")
                         .executes(TextFinderCommands::displayCommand))
                 .then(literal("refilter")
-                        .then(argument("newKeyword", greedyString())
+                        .then(argument("newKeyword", StringArgumentType.string())
                                 .executes(TextFinderCommands::refilterCommand)))
                 .then(literal("clear")
                         .executes(TextFinderCommands::clearCommand)));
 
         // 简写指令
         dispatcher.register(literal("tf")
-                .then(argument("keyword", greedyString())
+                .then(argument("keyword", StringArgumentType.string())
                         .executes(TextFinderCommands::searchCommand)));
 
         dispatcher.register(literal("td")
                 .executes(TextFinderCommands::displayCommand));
 
         dispatcher.register(literal("trf")
-                .then(argument("newKeyword", greedyString())
+                .then(argument("newKeyword", StringArgumentType.string())
                         .executes(TextFinderCommands::refilterCommand)));
     }
 
-    // 搜索指令
     private static int searchCommand(CommandContext<FabricClientCommandSource> context) {
         String keyword = StringArgumentType.getString(context, "keyword");
         FabricClientCommandSource source = context.getSource();
@@ -54,28 +52,16 @@ public class TextFinderCommands {
         return 1;
     }
 
-    // 显示结果指令
+    // 关键修复：调用新的outputSearchResults方法，直接传入命令源
     private static int displayCommand(CommandContext<FabricClientCommandSource> context) {
         FabricClientCommandSource source = context.getSource();
         SignSearchManager manager = SignSearchManager.getInstance();
 
-        if (manager.isSearching()) {
-            source.sendFeedback(Text.literal("§e搜索正在进行中... 已检查 " + manager.getTotalSignsChecked() + " 个告示牌"));
-            return 0;
-        }
-
-        var results = manager.getFoundSigns();
-        if (results.isEmpty()) {
-            source.sendFeedback(Text.literal("§e未找到匹配的告示牌"));
-            return 0;
-        }
-
-        // 调用管理器的输出方法，根据配置的复杂度输出结果
-        manager.outputSearchResults(source.getClient());
+        // 直接调用管理器的输出方法，传入命令源
+        manager.outputSearchResults(source);
         return 1;
     }
 
-    // 重新筛选指令
     private static int refilterCommand(CommandContext<FabricClientCommandSource> context) {
         String newKeyword = StringArgumentType.getString(context, "newKeyword");
         FabricClientCommandSource source = context.getSource();
@@ -87,7 +73,6 @@ public class TextFinderCommands {
         return displayCommand(context);
     }
 
-    // 清除结果指令
     private static int clearCommand(CommandContext<FabricClientCommandSource> context) {
         FabricClientCommandSource source = context.getSource();
         SignSearchManager.getInstance().clearFoundSigns();

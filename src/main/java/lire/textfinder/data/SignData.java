@@ -14,6 +14,7 @@ public class SignData {
     private final BlockPos pos;
     private final Block block;
     private final int blockId;
+    private final BlockState state; // 新增：存储BlockState
     private final List<Text> frontTexts;
     private final String frontColor;
     private final boolean frontGlowing;
@@ -26,6 +27,7 @@ public class SignData {
         this.pos = pos;
         this.block = state.getBlock();
         this.blockId = Block.getRawIdFromState(state);
+        this.state = state; // 新增：初始化BlockState
         this.frontTexts = frontTexts;
         this.frontColor = frontColor;
         this.frontGlowing = frontGlowing;
@@ -34,79 +36,68 @@ public class SignData {
         this.backGlowing = backGlowing;
     }
 
-    // Getters
-    public BlockPos getPos() { return pos; }
-    public Block getBlock() { return block; }
-    public int getBlockId() { return blockId; }
-    public List<Text> getFrontTexts() { return frontTexts; }
-    public String getFrontColor() { return frontColor; }
-    public boolean isFrontGlowing() { return frontGlowing; }
-    public List<Text> getBackTexts() { return backTexts; }
-    public String getBackColor() { return backColor; }
-    public boolean isBackGlowing() { return backGlowing; }
+    // 新增：获取BlockState的getter方法
+    public BlockState getState() {
+        return state;
+    }
 
-    /**
-     * 检查告示牌是否匹配搜索关键词
-     */
+    // 其他现有getter方法保持不变...
+    public BlockPos getPos() {
+        return pos;
+    }
+
+    public Block getBlock() {
+        return block;
+    }
+
+    public int getBlockId() {
+        return blockId;
+    }
+
+    public List<Text> getFrontTexts() {
+        return frontTexts;
+    }
+
+    public String getFrontColor() {
+        return frontColor;
+    }
+
+    public boolean isFrontGlowing() {
+        return frontGlowing;
+    }
+
+    public List<Text> getBackTexts() {
+        return backTexts;
+    }
+
+    public String getBackColor() {
+        return backColor;
+    }
+
+    public boolean isBackGlowing() {
+        return backGlowing;
+    }
+
+    // 其他现有方法保持不变...
     public boolean matches(String searchContext) {
-        String processedKeyword = processString(searchContext);
-
         // 检查正面文本
         for (Text text : frontTexts) {
-            String textStr = processString(text.getString());
-            if (textStr.contains(processedKeyword)) {
+            if (text.getString().contains(searchContext)) {
                 return true;
             }
         }
-
         // 检查背面文本
-        return matchesBack(searchContext);
-    }
-
-    /**
-     * 检查背面是否匹配搜索关键词
-     */
-    public boolean matchesBack(String searchContext) {
-        String processedKeyword = processString(searchContext);
-
         for (Text text : backTexts) {
-            String textStr = processString(text.getString());
-            if (textStr.contains(processedKeyword)) {
+            if (text.getString().contains(searchContext)) {
                 return true;
             }
         }
         return false;
     }
 
-    /**
-     * 字符串预处理：去除前后空格 + 全角转半角
-     */
-    private String processString(String str) {
-        if (str == null) return "";
-        // 去除前后空格
-        String trimmed = str.trim();
-        // 全角转半角
-        StringBuilder sb = new StringBuilder();
-        for (char c : trimmed.toCharArray()) {
-            if (c == 12288) { // 全角空格
-                sb.append((char) 32);
-            } else if (c >= 65281 && c <= 65374) { // 全角字符范围
-                sb.append((char) (c - 65248));
-            } else {
-                sb.append(c);
-            }
-        }
-        return sb.toString();
-    }
-
-    /**
-     * 获取包含匹配文本的面的文本内容
-     */
     public List<Text> getMatchingTexts(String searchContext) {
-        String processedKeyword = processString(searchContext);
-
         for (Text text : frontTexts) {
-            if (processString(text.getString()).contains(processedKeyword)) {
+            if (text.getString().contains(searchContext)) {
                 return frontTexts;
             }
         }

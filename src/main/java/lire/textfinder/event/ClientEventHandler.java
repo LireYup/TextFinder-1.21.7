@@ -43,7 +43,7 @@ public class ClientEventHandler {
      */
     private static void handleDebugOutput(SignSearchManager searchManager, MinecraftClient client) {
         // 根据输出复杂度判断是否显示调试信息（4对应Debug模式）
-        int outputcomplexity = TextFinder.config.getoutputcomplexity();
+        int outputcomplexity = Integer.parseInt(String.valueOf(TextFinder.config.getoutputcomplexity()));
         if (outputcomplexity == 4 && client.player != null) {
             int debuginterval = TextFinder.config.getdebugpgt();
             int totalchecked = searchManager.getTotalSignsChecked();

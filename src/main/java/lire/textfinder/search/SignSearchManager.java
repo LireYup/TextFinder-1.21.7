@@ -249,7 +249,7 @@ public class SignSearchManager {
         // 读取数字类型的输出复杂度（关键修复：适配配置中的3/4等级）
         int complexity;
         try {
-            complexity = Integer.parseInt(TextFinder.config.getoutputcomplexity());
+            complexity = Integer.parseInt(String.valueOf(TextFinder.config.getoutputcomplexity()));
         } catch (NumberFormatException e) {
             complexity = 2; // 默认简单模式
         }

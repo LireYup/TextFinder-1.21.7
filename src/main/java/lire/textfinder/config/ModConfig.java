@@ -86,7 +86,7 @@ public class ModConfig {
     }
 
     // 输出复杂度
-    public String getoutputcomplexity() {
+    public int getoutputcomplexity() {
         return Math.max(1, Math.min(4, outputcomplexity));
     }
 
